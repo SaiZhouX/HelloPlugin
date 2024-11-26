@@ -2,6 +2,7 @@ plugins {
     `kotlin-dsl`
     id("java-library")
     id("maven-publish")
+    id("kotlin-kapt")
     alias(libs.plugins.jetbrains.kotlin.jvm)
 }
 
@@ -16,7 +17,7 @@ gradlePlugin {
 
 //推送到本地
 group = "com.snail.test"
-version = "1.0.0"
+version = "1.0.1"
 publishing {
     repositories {
         maven {
@@ -29,4 +30,8 @@ publishing {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+}
+
+dependencies{
+    implementation("com.android.tools.build:gradle:8.4.0")
 }
