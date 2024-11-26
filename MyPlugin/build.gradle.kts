@@ -3,6 +3,7 @@ plugins {
     id("java-library")
     id("maven-publish")
     id("kotlin-kapt")
+    id("org.jetbrains.kotlin.plugin.serialization")
     alias(libs.plugins.jetbrains.kotlin.jvm)
 }
 
@@ -17,7 +18,7 @@ gradlePlugin {
 
 //推送到本地
 group = "com.snail.test"
-version = "1.0.1"
+version = "1.0.0"
 publishing {
     repositories {
         maven {
@@ -34,4 +35,5 @@ java {
 
 dependencies{
     implementation("com.android.tools.build:gradle:8.4.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }
