@@ -3,9 +3,14 @@ package com.snailgame.myplugin
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import com.android.build.api.dsl.ApplicationExtension
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
+import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 import com.snailgame.myplugin.config.ConfigManager
 import com.snailgame.myplugin.config.WepackConfig
 import org.gradle.configurationcache.extensions.capitalized
+import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 class MyPlugin : Plugin<Project> {
     companion object {
@@ -14,6 +19,9 @@ class MyPlugin : Plugin<Project> {
 
         @JvmStatic
         lateinit var android: ApplicationExtension
+
+        @JvmStatic
+        lateinit var appAndroidComponents: ApplicationAndroidComponentsExtension
 
         @JvmStatic
         lateinit var wepackConfig: WepackConfig
@@ -27,6 +35,8 @@ class MyPlugin : Plugin<Project> {
 
         MyPlugin.project = target
         android = target.extensions.getByType(ApplicationExtension::class.java)
+        appAndroidComponents =
+            project.extensions.getByType(ApplicationAndroidComponentsExtension::class.java)
         wepackConfig = target.extensions.create("wepackConfig", WepackConfig::class.java, target)
         configManager = ConfigManager()
 
@@ -37,6 +47,8 @@ class MyPlugin : Plugin<Project> {
         }
 
         generateProductFlavors()
+
+        configOutput()
 
         addBuildChannel()
 
@@ -59,6 +71,9 @@ class MyPlugin : Plugin<Project> {
      * 而Wepack则是使用脚本来自动生成上述productFlavors配置，从而实现多渠道打包功能。
      */
     private fun generateProductFlavors() {
+        val weDimension = "wepack"
+        android.flavorDimensions.add(weDimension)
+
         for (channel in wepackConfig.channels) {
             android.productFlavors {
                 create(channel.name) {
@@ -66,6 +81,42 @@ class MyPlugin : Plugin<Project> {
                 }
 
                 println("productFlavors：" + getByName(channel.name).name)
+            }
+        }
+    }
+
+    /**
+     * 打包相关的配置
+     */
+    private fun configOutput() {
+        // productName默认使用工程名，若配置productName，则使用用户配置的名称
+        var productName = project.name
+        if (wepackConfig.productName != null && wepackConfig.productName!!.isNotBlank()) {
+            productName = wepackConfig.productName!!
+        }
+
+        // 遍历所有Variant，修改保存文件名，若配置releasePath，则拷贝一份release apk到该路径
+        appAndroidComponents.onVariants { variant ->
+            variant.outputs.forEach { output ->
+                if (output is ApkVariantOutputImpl) {
+                    output.outputFileName =
+                        "${productName}_${variant.flavorName}_${output.versionName}" +
+                                "_${output.versionCode}_${variant.buildType}.apk"
+
+                    if (wepackConfig.releasePath != null && "release" == variant.buildType) {
+                        output.assemble.doLast {
+                            val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
+                            val time = dateTimeFormatter.format(LocalDateTime.now())
+                            val targetFile = File(
+                                wepackConfig.releasePath,
+                                "${output.versionName}_${output.versionCode}" +
+                                        "/${productName}_${variant.flavorName}" +
+                                        "_${output.versionName}_${output.versionCode}_${time}.apk"
+                            )
+                            output.outputFile.copyTo(targetFile)
+                        }
+                    }
+                }
             }
         }
     }
